@@ -8,9 +8,6 @@ import { registerRedirectRoute } from "../server/_core/redirect";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// On Vercel, api/index.ts is at .vercel/output/functions/api.func/api/index.js
-// Project root is 2 levels up
-const projectRoot = path.resolve(__dirname, "..");
 
 const app = express();
 
@@ -36,7 +33,9 @@ app.get("/api/auth/login", (_req, res) => {
 registerRedirectRoute(app);
 
 // Serve static files from Vite build output
-const staticPath = path.resolve(projectRoot, "dist", "public");
+// @vercel/static-build puts dist/public into the static output
+// We can import from relative path since the build script runs vite build
+const staticPath = path.resolve(__dirname, "..", "dist", "public");
 
 app.use(express.static(staticPath));
 
