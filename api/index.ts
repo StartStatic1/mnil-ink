@@ -57,5 +57,13 @@ app.get("/:slug", async (req, res, next) => {
   }
 });
 
+// Global error handler
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("[API Error]", err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error",
+  });
+});
+
 // Export for Vercel serverless function
 export default app;

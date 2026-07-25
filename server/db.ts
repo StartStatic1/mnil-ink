@@ -97,10 +97,18 @@ export async function getUserById(id: number) {
 
 export async function createLink(link: InsertLink) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(links).values(link);
-  const result = await db.select().from(links).where(eq(links.slug, link.slug)).limit(1);
-  return result[0]!;
+  if (!db) {
+    console.error("[DB] Database not available - DATABASE_URL may not be configured");
+    throw new Error("Banco de dados nao disponivel. Verifique a configuracao de DATABASE_URL.");
+  }
+  try {
+    await db.insert(links).values(link);
+    const result = await db.select().from(links).where(eq(links.slug, link.slug)).limit(1);
+    return result[0]!;
+  } catch (error: any) {
+    console.error("[DB] Error creating link:", error);
+    throw new Error(`Erro ao criar link: ${error?.message || "Erro desconhecido"}`);
+  }
 }
 
 export async function getLinkBySlug(slug: string) {

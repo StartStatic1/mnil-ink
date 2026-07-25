@@ -119,41 +119,46 @@ export const appRouter = router({
         customSlug: z.string().min(1).max(64).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        // Validate URL
-        if (!isValidUrl(input.url)) {
-          throw new Error("URL inválida. Insira uma URL completa com http:// ou https://");
-        }
-
-        let slug: string;
-
-        if (input.customSlug) {
-          // Validate custom slug format
-          if (!isValidCustomSlug(input.customSlug)) {
-            throw new Error("Slug personalizado inválido. Use apenas letras, números, hífens e underlines.");
+        try {
+          // Validate URL
+          if (!isValidUrl(input.url)) {
+            throw new Error("URL inválida. Insira uma URL completa com http:// ou https://");
           }
-          // Check uniqueness
-          const unique = await db.isSlugUnique(input.customSlug);
-          if (!unique) {
-            throw new Error("Este slug já está em uso. Tente outro.");
+
+          let slug: string;
+
+          if (input.customSlug) {
+            // Validate custom slug format
+            if (!isValidCustomSlug(input.customSlug)) {
+              throw new Error("Slug personalizado inválido. Use apenas letras, números, hífens e underlines.");
+            }
+            // Check uniqueness
+            const unique = await db.isSlugUnique(input.customSlug);
+            if (!unique) {
+              throw new Error("Este slug já está em uso. Tente outro.");
+            }
+            slug = input.customSlug;
+          } else {
+            slug = await generateUniqueSlug();
           }
-          slug = input.customSlug;
-        } else {
-          slug = await generateUniqueSlug();
+
+          const link = await db.createLink({
+            slug,
+            url: input.url,
+            userId: ctx.user?.id ?? null,
+          });
+
+          return {
+            slug: link.slug,
+            url: link.url,
+            shortUrl: `${(ctx.req.headers['x-forwarded-proto'] || 'https')}://${ctx.req.headers.host || 'mnil.ink'}/${link.slug}`,
+            createdAt: link.createdAt.toISOString(),
+            clickCount: link.clickCount || 0,
+          };
+        } catch (error: any) {
+          console.error("[Links.Create Error]", error);
+          throw new Error(error?.message || "Erro ao encurtar link. Tente novamente.");
         }
-
-        const link = await db.createLink({
-          slug,
-          url: input.url,
-          userId: ctx.user?.id ?? null,
-        });
-
-        return {
-          slug: link.slug,
-          url: link.url,
-          shortUrl: `${(ctx.req.headers['x-forwarded-proto'] || 'https')}://${ctx.req.headers.host || 'mnil.ink'}/${link.slug}`,
-          createdAt: link.createdAt.toISOString(),
-          clickCount: link.clickCount || 0,
-        };
       }),
 
     /**
