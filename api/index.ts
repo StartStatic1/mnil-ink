@@ -8,6 +8,8 @@ import { registerRedirectRoute } from "../server/_core/redirect";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// On Vercel, api/index.ts is at .vercel/output/functions/api.func/api/index.js
+// Project root is 2 levels up
 const projectRoot = path.resolve(__dirname, "..");
 
 const app = express();
@@ -43,5 +45,5 @@ app.get("*", (_req, res) => {
   res.sendFile(path.resolve(staticPath, "index.html"));
 });
 
-// Export for Vercel
+// Export for Vercel serverless function
 export default app;

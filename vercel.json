@@ -7,11 +7,6 @@
       "config": {
         "maxDuration": 30
       }
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist/public" }
     }
   ],
   "routes": [
