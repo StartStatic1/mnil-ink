@@ -1,14 +1,13 @@
 import express from "express";
-import path from "path";
 import { fileURLToPath } from "url";
-import { existsSync } from "fs";
+import { dirname } from "path";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../server/routers";
 import { createContext } from "../server/_core/context";
-import { registerRedirectRoute } from "../server/_core/redirect";
+import { getLinkBySlug, incrementClickCount } from "../server/db";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -30,33 +29,32 @@ app.get("/api/auth/login", (_req, res) => {
   res.redirect(302, "/login");
 });
 
-// Slug redirect route - MUST be before static serving
-registerRedirectRoute(app);
-
-// Serve static files from Vite build output
-// Try multiple paths:
-// Local dev: ../dist/public (relative to api/index.ts)
-// Vercel @vercel/node with includeFiles: dist/public is at project root
-// Vercel @vercel/node bundled: .vercel/output/functions/api.func/dist/public
-const staticPaths = [
-  path.resolve(__dirname, "..", "dist", "public"),  // local dev
-  path.resolve(__dirname, "dist", "public"),         // Vercel bundled
-  path.resolve(process.cwd(), "dist", "public"),     // Vercel cwd
-];
-
-const staticPath = staticPaths.find(p => {
-  try {
-    return existsSync(path.resolve(p, "index.html"));
-  } catch {
-    return false;
+// Slug redirect handler
+app.get("/:slug", async (req, res, next) => {
+  // Skip static asset paths
+  const slug = req.params.slug;
+  if (!slug || slug.startsWith(".") || slug.includes("/")) {
+    return next();
   }
-}) || staticPaths[0];
 
-app.use(express.static(staticPath));
+  try {
+    const link = await getLinkBySlug(slug);
+    if (link) {
+      // Increment click count in background
+      incrementClickCount(slug).catch(() => {});
 
-// SPA fallback - serve index.html for all unmatched routes
-app.get("*", (_req, res) => {
-  res.sendFile(path.resolve(staticPath, "index.html"));
+      if (link.url) {
+        // Handle 301 permanent redirect
+        res.redirect(301, link.url);
+      } else {
+        res.status(404).send("Link not found");
+      }
+    } else {
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Export for Vercel serverless function
