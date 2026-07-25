@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import { existsSync } from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../server/routers";
 import { createContext } from "../server/_core/context";
@@ -33,9 +34,23 @@ app.get("/api/auth/login", (_req, res) => {
 registerRedirectRoute(app);
 
 // Serve static files from Vite build output
-// @vercel/static-build puts dist/public into the static output
-// We can import from relative path since the build script runs vite build
-const staticPath = path.resolve(__dirname, "..", "dist", "public");
+// Try multiple paths:
+// Local dev: ../dist/public (relative to api/index.ts)
+// Vercel @vercel/node with includeFiles: dist/public is at project root
+// Vercel @vercel/node bundled: .vercel/output/functions/api.func/dist/public
+const staticPaths = [
+  path.resolve(__dirname, "..", "dist", "public"),  // local dev
+  path.resolve(__dirname, "dist", "public"),         // Vercel bundled
+  path.resolve(process.cwd(), "dist", "public"),     // Vercel cwd
+];
+
+const staticPath = staticPaths.find(p => {
+  try {
+    return existsSync(path.resolve(p, "index.html"));
+  } catch {
+    return false;
+  }
+}) || staticPaths[0];
 
 app.use(express.static(staticPath));
 
