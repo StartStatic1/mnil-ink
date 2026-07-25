@@ -88,12 +88,8 @@ class SDKServer {
     }
 
     // Get user from DB
-    const db = await import("../db").then(m => m.getDb());
-    if (!db) {
-      throw ForbiddenError("Database not available");
-    }
-
-    const user = await db.getUserById(session.userId);
+    const { getUserById } = await import("../db");
+    const user = await getUserById(session.userId);
     if (!user) {
       throw ForbiddenError("User not found");
     }
